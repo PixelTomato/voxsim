@@ -1,0 +1,10 @@
+# cmake
+build/
+
+# editor
+.vscode/
+
+# system
+Thumbs.db
+desktop.ini
+.DS_Store
