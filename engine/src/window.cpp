@@ -13,6 +13,9 @@ Window::Window(int width, int height, const char *title)
 
     handle = glfwCreateWindow(width, height, "VoxSim", nullptr, nullptr);
 
+    this->width = width;
+    this->height = height;
+
     glfwMakeContextCurrent(handle);
 
     if (gladLoadGL((GLADloadfunc)glfwGetProcAddress) == 0)
@@ -21,6 +24,10 @@ Window::Window(int width, int height, const char *title)
     }
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    glEnable(GL_DEPTH_TEST);
+
+    glViewport(0, 0, width, height);
 }
 
 Window::~Window()
@@ -46,4 +53,24 @@ void Window::swapBuffers()
 void Window::pollInputs()
 {
     glfwPollEvents();
+}
+
+GLFWwindow *Window::getHandle()
+{
+    return handle;
+}
+
+float Window::getWidth()
+{
+    return width;
+}
+
+float Window::getHeight()
+{
+    return height;
+}
+
+float Window::getAspect()
+{
+    return width / height;
 }

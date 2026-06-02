@@ -9,6 +9,9 @@ class Window
 {
     GLFWwindow *handle;
 
+    float width;
+    float height;
+
 public:
     Window(int width, int height, const char *title);
 
@@ -21,4 +24,12 @@ public:
     void swapBuffers();
 
     void pollInputs();
+
+    GLFWwindow *getHandle();
+
+    float getWidth();
+
+    float getHeight();
+
+    float getAspect();
 };
