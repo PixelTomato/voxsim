@@ -45,7 +45,18 @@ void mouseCallback(GLFWwindow *window, double x, double y)
 
 void Input::init(GLFWwindow *window)
 {
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+
+    Input::lastX = width / 2.0f;
+    Input::lastY = height / 2.0f;
+
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    if (glfwRawMouseMotionSupported())
+    {
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
 
     glfwSetKeyCallback(window, keyCallback);
     glfwSetCursorPosCallback(window, mouseCallback);
@@ -53,15 +64,15 @@ void Input::init(GLFWwindow *window)
 
 void Input::update()
 {
-    deltaX = 0.0;
-    deltaY = 0.0;
+    Input::deltaX = 0.0;
+    Input::deltaY = 0.0;
 }
 
 bool Input::getKey(int key)
 {
     if (key >= 0 && key < 1024)
     {
-        return keys[key];
+        return Input::keys[key];
     }
 
     return false;
@@ -69,6 +80,6 @@ bool Input::getKey(int key)
 
 void Input::getMouseDelta(double &x, double &y)
 {
-    x = deltaX;
-    y = deltaY;
+    x = Input::deltaX;
+    y = Input::deltaY;
 }

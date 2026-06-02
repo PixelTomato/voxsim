@@ -11,8 +11,11 @@ class Input
 private:
     static bool keys[1024];
 
-    static double lastX, lastY;
-    static double deltaX, deltaY;
+    static double lastX;
+    static double lastY;
+
+    static double deltaX;
+    static double deltaY;
 
     static bool firstMouse;
 

@@ -1,4 +1,5 @@
 add_library(engine STATIC
+    src/camera.cpp
     src/input.cpp
     src/mesh.cpp
     src/shader.cpp
