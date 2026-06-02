@@ -2,6 +2,8 @@
 
 #include <glad/gl.h>
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -22,4 +24,6 @@ public:
     ~Shader();
 
     void bind();
+
+    void setUniform(std::string name, glm::mat4 value);
 };
