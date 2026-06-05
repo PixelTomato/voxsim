@@ -6,6 +6,7 @@ add_library(engine STATIC
     src/shader.cpp
     src/texture.cpp
     src/window.cpp
+    src/world.cpp
 )
 
 target_include_directories(engine PUBLIC inc)

@@ -2,7 +2,7 @@
 
 #include <glad/gl.h>
 
-#include <span>
+#include <vector>
 
 class Mesh
 {
@@ -11,12 +11,16 @@ private:
     unsigned int VBO;
     unsigned int EBO;
 
-    int indexCount;
+    int indexCount = 0;
 
 public:
-    Mesh(float *vertices, unsigned int vaSize, unsigned int *indices, unsigned int iaSize);
+    Mesh();
+
+    Mesh(const std::vector<float> &vertices, const std::vector<unsigned int> &indices);
 
     ~Mesh();
 
-    void draw();
+    void upload(const std::vector<float> &vertices, const std::vector<unsigned int> &indices);
+
+    void draw() const;
 };
