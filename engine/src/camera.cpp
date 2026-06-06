@@ -11,7 +11,7 @@ Camera::Camera(glm::vec3 position)
     yaw = -90.0f;
     pitch = 0.0f;
 
-    speed = 9.0f;
+    speed = 18.0f;
     sensitivity = 0.03f;
 
     calculateVectors();
@@ -52,9 +52,14 @@ void Camera::rotate(float deltaX, float deltaY)
     calculateVectors();
 }
 
-glm::mat4 Camera::getViewMatrix()
+glm::mat4 Camera::getViewMatrix() const
 {
     return glm::lookAt(position, position + front, up);
+}
+
+glm::vec3 Camera::getPosition() const
+{
+    return position;
 }
 
 void Camera::calculateVectors()

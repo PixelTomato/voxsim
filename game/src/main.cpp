@@ -18,20 +18,10 @@ int main()
 
     Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
-    int worldWidth = 20;
-    int worldHeight = 2;
-
     World world;
-    for (int x = -worldWidth; x <= worldWidth; x++)
-    {
-        for (int y = 0; y <= worldHeight; y++)
-        {
-            for (int z = -worldWidth; z <= worldWidth; z++)
-            {
-                world.loadChunk({x, y, z});
-            }
-        }
-    }
+
+    int worldWidth = 12;
+    int worldHeight = 2;
 
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
@@ -59,6 +49,25 @@ int main()
         Input::getMouseDelta(mouseX, mouseY);
 
         camera.rotate(mouseX, mouseY);
+
+        glm::vec3 position = camera.getPosition();
+        int cameraX = position.x / 16.0f;
+        int cameraY = position.y / 16.0f;
+        int cameraZ = position.z / 16.0f;
+
+        for (int x = cameraX - worldWidth; x <= cameraX + worldWidth; x++)
+        {
+            for (int y = 0; y <= worldHeight; y++)
+            {
+                for (int z = cameraZ - worldWidth; z <= cameraZ + worldWidth; z++)
+                {
+                    int xDist = cameraX - x;
+                    int zDist = cameraZ - z;
+
+                    if ((xDist * xDist + zDist * zDist) < 12 * 12) world.loadChunk({x, y, z});
+                }
+            }
+        }
 
         window.clear();
 

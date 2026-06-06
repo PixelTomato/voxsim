@@ -26,7 +26,9 @@ public:
 
     void rotate(float x, float y);
 
-    glm::mat4 getViewMatrix();
+    glm::mat4 getViewMatrix() const;
+
+    glm::vec3 getPosition() const;
 
 private:
     void calculateVectors();
