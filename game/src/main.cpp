@@ -14,7 +14,7 @@ int main()
 
     Shader shader("res/shaders/basic.vert", "res/shaders/basic.frag");
 
-    Texture stoneBrickTexture("res/textures/sand.png");
+    Texture stoneBrickTexture("res/textures/bricks.png");
 
     Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
@@ -50,10 +50,10 @@ int main()
 
         camera.rotate(mouseX, mouseY);
 
-        glm::vec3 position = camera.getPosition();
-        int cameraX = position.x / 16.0f;
-        int cameraY = position.y / 16.0f;
-        int cameraZ = position.z / 16.0f;
+        glm::vec3 position = camera.getPosition() / 16.0f;
+        int cameraX = position.x;
+        int cameraY = position.y;
+        int cameraZ = position.z;
 
         for (int x = cameraX - worldWidth; x <= cameraX + worldWidth; x++)
         {
@@ -73,12 +73,8 @@ int main()
 
         shader.bind();
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), window.getAspect(), 0.01f, 1000.0f);
-
-        glm::mat4 view = camera.getViewMatrix();
-
-        shader.setUniform("projection", projection);
-        shader.setUniform("view", view);
+        shader.setUniform("projection", glm::perspective(glm::radians(45.0f), window.getAspect(), 0.01f, 1000.0f));
+        shader.setUniform("view", camera.getViewMatrix());
 
         stoneBrickTexture.bind(0);
 
@@ -87,11 +83,7 @@ int main()
         {
             if (chunk->isReady())
             {
-                ChunkPosition position = chunk->getPosition();
-
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(position.x * 16.0f, position.y * 16.0f, position.z * 16.0f));
-                shader.setUniform("model", model);
+                shader.setUniform("model", glm::translate(glm::mat4(1.0f), chunk->getPosition().toVec3() * 16.0f));
 
                 chunk->getMesh()->draw();
             }

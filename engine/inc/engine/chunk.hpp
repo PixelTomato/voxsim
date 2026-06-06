@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <engine/mesh.hpp>
 
 #include <memory>
@@ -14,6 +16,11 @@ struct ChunkPosition
     bool operator==(const ChunkPosition &other) const
     {
         return (x == other.x) && (y == other.y) && (z == other.z);
+    }
+
+    glm::vec3 toVec3() const
+    {
+        return glm::vec3(x, y, z);
     }
 };
 
