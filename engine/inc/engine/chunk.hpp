@@ -7,6 +7,8 @@
 #include <memory>
 #include <array>
 
+class World;
+
 struct ChunkPosition
 {
     int x;
@@ -35,7 +37,27 @@ private:
 
     bool ready = false;
 
+    bool dirty = false;
+
 public:
+    Chunk *neighbors[6] = {
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+    };
+
+    inline static const int NEIGHBORS[6][3] = {
+        {+0, +0, +1}, // front
+        {+0, +0, -1}, // back
+        {+1, +0, +0}, // right
+        {-1, +0, +0}, // left
+        {+0, +1, +0}, // top
+        {+0, -1, +0}, // bottom
+    };
+
     std::size_t index;
 
     Chunk(ChunkPosition position);
@@ -49,6 +71,12 @@ public:
     void setReady(bool state);
 
     void rebuildMesh();
+
+    void markDirty(World &world);
+
+    void markClean();
+
+    bool isDirty() const;
 
     const Mesh *getMesh() const;
 

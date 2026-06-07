@@ -25,6 +25,7 @@ class World
 {
 private:
     std::vector<ChunkPosition> genQueue;
+    std::vector<ChunkPosition> dirtyQueue;
 
     std::vector<Chunk *> chunks;
 
@@ -46,6 +47,8 @@ public:
     void setBlock(int x, int y, int z, char type);
 
     void generateChunk(Chunk *chunk);
+
+    void queueDirty(ChunkPosition position);
 
     const std::vector<Chunk *> &getChunks() const;
 };

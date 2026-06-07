@@ -1,5 +1,7 @@
 #include <engine/chunk.hpp>
 
+#include <engine/world.hpp>
+
 Chunk::Chunk(ChunkPosition position) : position(position) {}
 
 void Chunk::setBlock(int x, int y, int z, char type)
@@ -32,15 +34,6 @@ void Chunk::rebuildMesh()
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
-    const int offsets[6][3] = {
-        {+0, +0, +1}, // front
-        {+0, +0, -1},
-        {+1, +0, +0}, // right
-        {-1, +0, +0},
-        {+0, +1, +0}, // top
-        {+0, -1, +0},
-    };
-
     const float cubeFaces[6][4][8] = {
         {{0, 0, 1, +0, +0, +1, 0.0f, 0.0f}, {1, 0, 1, +0, +0, +1, 1.0f, 0.0f}, {1, 1, 1, +0, +0, +1, 1.0f, 1.0f}, {0, 1, 1, +0, +0, +1, 0.0f, 1.0f}}, // front
         {{1, 0, 0, +0, +0, -1, 0.0f, 0.0f}, {0, 0, 0, +0, +0, -1, 1.0f, 0.0f}, {0, 1, 0, +0, +0, -1, 1.0f, 1.0f}, {1, 1, 0, +0, +0, -1, 0.0f, 1.0f}},
@@ -64,17 +57,36 @@ void Chunk::rebuildMesh()
 
                 for (int face = 0; face < 6; face++)
                 {
-                    int nx = x + offsets[face][0];
-                    int ny = y + offsets[face][1];
-                    int nz = z + offsets[face][2];
-
-                    bool visible = false;
+                    int nx = x + NEIGHBORS[face][0];
+                    int ny = y + NEIGHBORS[face][1];
+                    int nz = z + NEIGHBORS[face][2];
 
                     bool inBounds = (nx >= 0 && nx < 16) && (ny >= 0 && ny < 16) && (nz >= 0 && nz < 16);
 
-                    if (!inBounds || getBlock(nx, ny, nz) == 0)
+                    bool visible = false;
+
+                    if (inBounds)
                     {
-                        visible = true;
+                        if (getBlock(nx, ny, nz) == 0)
+                        {
+                            visible = true;
+                        }
+                    }
+                    else
+                    {
+                        Chunk *neighbor = neighbors[face];
+
+                        if (neighbor == nullptr || !neighbor->isReady())
+                        {
+                            visible = true;
+                        }
+                        else
+                        {
+                            if (neighbor->getBlock(nx & 15, ny & 15, nz & 15) == 0)
+                            {
+                                visible = true;
+                            }
+                        }
                     }
 
                     if (visible)
@@ -108,6 +120,26 @@ void Chunk::rebuildMesh()
     }
 
     mesh->upload(vertices, indices);
+}
+
+void Chunk::markDirty(World &world)
+{
+    if (!dirty)
+    {
+        dirty = true;
+
+        world.queueDirty(position);
+    }
+}
+
+void Chunk::markClean()
+{
+    dirty = false;
+}
+
+bool Chunk::isDirty() const
+{
+    return dirty;
 }
 
 const Mesh *Chunk::getMesh() const

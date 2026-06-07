@@ -8,13 +8,41 @@ void World::update()
     {
         if (!genQueue.empty())
         {
-            ChunkPosition chunk = genQueue.back();
+            ChunkPosition position = genQueue.back();
 
             genQueue.pop_back();
 
-            if (!isLoaded(chunk)) continue;
+            if (!isLoaded(position)) continue;
 
-            generateChunk(chunkTable[chunk].get());
+            Chunk *chunk = chunkTable[position].get();
+
+            generateChunk(chunk);
+
+            for (int i = 0; i < 6; i++)
+            {
+                Chunk *neighbor = chunk->neighbors[i];
+
+                if (neighbor != nullptr && neighbor->isReady())
+                {
+                    neighbor->markDirty(*this);
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (!dirtyQueue.empty())
+        {
+            ChunkPosition position = dirtyQueue.back();
+
+            dirtyQueue.pop_back();
+
+            if (!isLoaded(position)) continue;
+
+            Chunk *chunk = chunkTable[position].get();
+
+            generateChunk(chunk);
         }
     }
 }
@@ -38,6 +66,22 @@ void World::loadChunk(ChunkPosition position)
     chunk->index = chunks.size();
     chunks.push_back(chunk.get());
 
+    for (int i = 0; i < 6; i++)
+    {
+        ChunkPosition offset = {position.x + Chunk::NEIGHBORS[i][0],
+                                position.y + Chunk::NEIGHBORS[i][1],
+                                position.z + Chunk::NEIGHBORS[i][2]};
+
+        auto target = chunkTable.find(offset);
+        if (target != chunkTable.end())
+        {
+            Chunk *neighbor = target->second.get();
+
+            chunk->neighbors[i] = neighbor;
+            neighbor->neighbors[i ^ 1] = chunk.get();
+        }
+    }
+
     chunkTable[position] = std::move(chunk);
 
     genQueue.push_back(position);
@@ -45,9 +89,23 @@ void World::loadChunk(ChunkPosition position)
 
 void World::unloadChunk(ChunkPosition position)
 {
-    if (!isLoaded(position)) return;
+    auto target = chunkTable.find(position);
 
-    auto index = chunkTable[position]->index;
+    if (target == chunkTable.end()) return;
+
+    Chunk *chunk = target->second.get();
+
+    for (int i = 0; i < 6; i++)
+    {
+        Chunk *neighbor = chunk->neighbors[i];
+
+        if (neighbor != nullptr)
+        {
+            neighbor->neighbors[i ^ 1] = nullptr;
+        }
+    }
+
+    std::size_t index = chunk->index;
 
     if (index < chunks.size() - 1)
     {
@@ -117,6 +175,13 @@ void World::generateChunk(Chunk *chunk)
     chunk->rebuildMesh();
 
     chunk->setReady(true);
+
+    chunk->markClean();
+}
+
+void World::queueDirty(ChunkPosition position)
+{
+    dirtyQueue.push_back(position);
 }
 
 const std::vector<Chunk *> &World::getChunks() const
