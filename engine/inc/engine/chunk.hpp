@@ -36,6 +36,8 @@ private:
     bool ready = false;
 
 public:
+    std::size_t index;
+
     Chunk(ChunkPosition position);
 
     void setBlock(int x, int y, int z, char type);

@@ -24,11 +24,15 @@ struct ChunkHash
 class World
 {
 private:
-    std::vector<std::unique_ptr<Chunk>> chunks;
+    std::vector<ChunkPosition> genQueue;
 
-    std::unordered_map<ChunkPosition, std::size_t, ChunkHash> chunkTable;
+    std::vector<Chunk *> chunks;
+
+    std::unordered_map<ChunkPosition, std::unique_ptr<Chunk>, ChunkHash> chunkTable;
 
 public:
+    void update();
+
     bool isLoaded(ChunkPosition position) const;
 
     bool chunkExists(ChunkPosition position) const;
@@ -41,7 +45,7 @@ public:
 
     void setBlock(int x, int y, int z, char type);
 
-    void generateChunk(Chunk *chunk, ChunkPosition position);
+    void generateChunk(Chunk *chunk);
 
-    const std::vector<std::unique_ptr<Chunk>> &getChunks() const;
+    const std::vector<Chunk *> &getChunks() const;
 };

@@ -10,14 +10,13 @@ Window window(1280, 720, "VoxSim");
 
 Shader shader("res/shaders/basic.vert", "res/shaders/basic.frag");
 
-Texture stoneBrickTexture("res/textures/bricks.png");
+Texture stoneBrickTexture("res/textures/stone_bricks.png");
 
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 World world;
 
-int worldWidth = 12;
-int worldHeight = 2;
+int viewRadius = 12;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -56,19 +55,29 @@ void update()
     int cameraY = position.y;
     int cameraZ = position.z;
 
-    for (int x = cameraX - worldWidth; x <= cameraX + worldWidth; x++)
+    for (int x = cameraX - viewRadius; x <= cameraX + viewRadius; x++)
     {
-        for (int y = 0; y <= worldHeight; y++)
+        for (int y = cameraY - viewRadius; y <= cameraY + viewRadius; y++)
         {
-            for (int z = cameraZ - worldWidth; z <= cameraZ + worldWidth; z++)
+            for (int z = cameraZ - viewRadius; z <= cameraZ + viewRadius; z++)
             {
                 int xDist = cameraX - x;
+                int yDist = cameraY - y;
                 int zDist = cameraZ - z;
 
-                if ((xDist * xDist + zDist * zDist) < 12 * 12) world.loadChunk({x, y, z});
+                if (((xDist * xDist) + (yDist * yDist) + (zDist * zDist)) < (viewRadius * viewRadius))
+                {
+                    world.loadChunk({x, y, z});
+                }
+                else
+                {
+                    world.unloadChunk({x, y, z});
+                }
             }
         }
     }
+
+    world.update();
 }
 
 void render()
@@ -83,7 +92,7 @@ void render()
     stoneBrickTexture.bind(0);
 
     const auto &chunks = world.getChunks();
-    for (const auto &chunk : chunks)
+    for (const auto chunk : chunks)
     {
         if (chunk->isReady())
         {
