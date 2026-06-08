@@ -16,8 +16,6 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 World world;
 
-int viewRadius = 12;
-
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -50,32 +48,7 @@ void update()
 
     camera.rotate(mouseX, mouseY);
 
-    glm::vec3 position = camera.getPosition() / 16.0f;
-    int cameraX = position.x;
-    int cameraY = position.y;
-    int cameraZ = position.z;
-
-    for (int x = cameraX - viewRadius; x <= cameraX + viewRadius; x++)
-    {
-        for (int y = cameraY - viewRadius; y <= cameraY + viewRadius; y++)
-        {
-            for (int z = cameraZ - viewRadius; z <= cameraZ + viewRadius; z++)
-            {
-                int xDist = cameraX - x;
-                int yDist = cameraY - y;
-                int zDist = cameraZ - z;
-
-                if (((xDist * xDist) + (yDist * yDist) + (zDist * zDist)) < (viewRadius * viewRadius))
-                {
-                    world.loadChunk({x, y, z});
-                }
-                else
-                {
-                    world.unloadChunk({x, y, z});
-                }
-            }
-        }
-    }
+    world.updateRadius(camera.getPosition(), 12);
 
     world.update();
 }
@@ -91,16 +64,7 @@ void render()
 
     stoneBrickTexture.bind(0);
 
-    const auto &chunks = world.getChunks();
-    for (const auto chunk : chunks)
-    {
-        if (chunk->isReady())
-        {
-            shader.setUniform("model", glm::translate(glm::mat4(1.0f), chunk->getPosition().toVec3() * 16.0f));
-
-            chunk->getMesh()->draw();
-        }
-    }
+    world.draw(shader);
 
     window.swapBuffers();
 }

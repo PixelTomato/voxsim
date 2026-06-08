@@ -1,8 +1,12 @@
 #pragma once
 
 #include <engine/chunk.hpp>
+#include <engine/shader.hpp>
 
 #include <unordered_map>
+#include <thread>
+#include <mutex>
+#include <atomic>
 #include <vector>
 #include <memory>
 #include <cmath>
@@ -24,6 +28,13 @@ struct ChunkHash
 class World
 {
 private:
+    std::thread workerThread;
+
+    mutable std::mutex queueMutex;
+    mutable std::mutex mapMutex;
+
+    std::atomic<bool> isRunning{true};
+
     std::vector<ChunkPosition> genQueue;
     std::vector<ChunkPosition> dirtyQueue;
 
@@ -32,11 +43,23 @@ private:
     std::unordered_map<ChunkPosition, std::unique_ptr<Chunk>, ChunkHash> chunkTable;
 
 public:
+    World();
+
+    ~World();
+
+    void workerLoop();
+
+    Chunk *getChunkThreadSafe(ChunkPosition position);
+
     void update();
+
+    void draw(Shader &shader);
 
     bool isLoaded(ChunkPosition position) const;
 
     bool chunkExists(ChunkPosition position) const;
+
+    void updateRadius(glm::vec3 cameraPosition, int radius);
 
     void loadChunk(ChunkPosition position);
 

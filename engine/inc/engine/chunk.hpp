@@ -35,7 +35,8 @@ private:
 
     ChunkPosition position;
 
-    bool ready = false;
+    bool generated = false;
+    bool meshed = false;
 
     bool dirty = false;
 
@@ -66,9 +67,13 @@ public:
 
     char getBlock(int x, int y, int z) const;
 
-    bool isReady() const;
+    bool isMeshed() const;
 
-    void setReady(bool state);
+    void setMeshed(bool state);
+
+    bool isGenerated() const;
+
+    void setGenerated(bool state);
 
     void rebuildMesh();
 

@@ -14,14 +14,24 @@ char Chunk::getBlock(int x, int y, int z) const
     return blocks[getIndex(x, y, z)];
 }
 
-void Chunk::setReady(bool state)
+bool Chunk::isMeshed() const
 {
-    ready = state;
+    return meshed;
 }
 
-bool Chunk::isReady() const
+void Chunk::setMeshed(bool state)
 {
-    return ready;
+    meshed = state;
+}
+
+bool Chunk::isGenerated() const
+{
+    return generated;
+}
+
+void Chunk::setGenerated(bool state)
+{
+    generated = state;
 }
 
 void Chunk::rebuildMesh()
@@ -76,7 +86,7 @@ void Chunk::rebuildMesh()
                     {
                         Chunk *neighbor = neighbors[face];
 
-                        if (neighbor == nullptr || !neighbor->isReady())
+                        if (neighbor == nullptr || !neighbor->isGenerated())
                         {
                             visible = true;
                         }
@@ -120,6 +130,10 @@ void Chunk::rebuildMesh()
     }
 
     mesh->upload(vertices, indices);
+
+    dirty = false;
+
+    meshed = true;
 }
 
 void Chunk::markDirty(World &world)
