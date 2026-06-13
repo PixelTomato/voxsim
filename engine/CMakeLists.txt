@@ -2,6 +2,7 @@ add_library(engine STATIC
     src/camera.cpp
     src/chunk.cpp
     src/input.cpp
+    src/jobs.cpp
     src/mesh.cpp
     src/shader.cpp
     src/texture.cpp

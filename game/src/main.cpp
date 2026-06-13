@@ -5,6 +5,7 @@
 #include <engine/shader.hpp>
 #include <engine/texture.hpp>
 #include <engine/world.hpp>
+#include <engine/jobs.hpp>
 
 Window window(1280, 720, "VoxSim");
 
@@ -19,10 +20,7 @@ World world;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-void init()
-{
-    Input::init(window.getHandle());
-}
+void init() { Input::init(window.getHandle()); }
 
 void update()
 {
@@ -53,6 +51,18 @@ void update()
     world.update();
 }
 
+void testLoad()
+{
+    std::stringstream message;
+    message << "ThreadStart: " << std::this_thread::get_id() << "\n";
+    std::cout << message.str();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    message << "ThreadEnd: " << std::this_thread::get_id() << "\n";
+    std::cout << message.str();
+}
+
 void render()
 {
     window.clear();
@@ -73,12 +83,23 @@ int main()
 {
     init();
 
-    while (!window.shouldClose())
-    {
-        update();
+    JobSystem jobs;
 
-        render();
+    std::cout << "Building job queue...\n";
+
+    for (int i = 0; i < 10; i++)
+    {
+        jobs.push([]() { testLoad(); });
     }
+
+    std::cout << "Job queue built\n";
+
+    // while (!window.shouldClose())
+    // {
+    //     update();
+
+    //     render();
+    // }
 
     return EXIT_SUCCESS;
 }
