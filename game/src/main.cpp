@@ -83,23 +83,12 @@ int main()
 {
     init();
 
-    JobSystem jobs;
-
-    std::cout << "Building job queue...\n";
-
-    for (int i = 0; i < 10; i++)
+    while (!window.shouldClose())
     {
-        jobs.push([]() { testLoad(); });
+        update();
+
+        render();
     }
-
-    std::cout << "Job queue built\n";
-
-    // while (!window.shouldClose())
-    // {
-    //     update();
-
-    //     render();
-    // }
 
     return EXIT_SUCCESS;
 }

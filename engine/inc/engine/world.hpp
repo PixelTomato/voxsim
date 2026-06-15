@@ -2,6 +2,7 @@
 
 #include <engine/chunk.hpp>
 #include <engine/shader.hpp>
+#include <engine/noise.hpp>
 
 #include <unordered_map>
 #include <thread>

@@ -4,6 +4,8 @@
 
 World::World()
 {
+    Noise();
+
     workerThread = std::thread(&World::workerLoop, this);
 }
 
@@ -143,15 +145,9 @@ void World::draw(Shader &shader)
     }
 }
 
-bool World::isLoaded(ChunkPosition position) const
-{
-    return chunkTable.contains(position);
-}
+bool World::isLoaded(ChunkPosition position) const { return chunkTable.contains(position); }
 
-bool World::chunkExists(ChunkPosition position) const
-{
-    return false;
-}
+bool World::chunkExists(ChunkPosition position) const { return false; }
 
 void World::updateRadius(glm::vec3 cameraPosition, int radius)
 {
@@ -208,9 +204,7 @@ void World::loadChunk(ChunkPosition position)
 
         for (int i = 0; i < 6; i++)
         {
-            ChunkPosition offset = {position.x + Chunk::NEIGHBORS[i][0],
-                                    position.y + Chunk::NEIGHBORS[i][1],
-                                    position.z + Chunk::NEIGHBORS[i][2]};
+            ChunkPosition offset = {position.x + Chunk::NEIGHBORS[i][0], position.y + Chunk::NEIGHBORS[i][1], position.z + Chunk::NEIGHBORS[i][2]};
 
             auto target = chunkTable.find(offset);
             if (target != chunkTable.end())
@@ -301,12 +295,14 @@ void World::generateChunk(Chunk *chunk)
         {
             for (int z = 0; z < 16; z++)
             {
-                int wx = (float)(position.x * 16 + x);
-                int wy = (float)(position.y * 16 + y);
-                int wz = (float)(position.z * 16 + z);
+                int wx = static_cast<double>(position.x * 16 + x);
+                int wy = static_cast<double>(position.y * 16 + y);
+                int wz = static_cast<double>(position.z * 16 + z);
 
-                float hills = std::sin(wx * 0.08f) * std::cos(wz * 0.08f) * 6.0f;
-                float bumps = std::sin(wx * 0.25f) * std::sin(wz * 0.15f) * 3.0f;
+                long seed = 569807092570937984;
+
+                float hills = Noise::get2D(seed, wx * 0.01, wz * 0.01) * 30.0f; // std::sin(wx * 0.08f) * std::cos(wz * 0.08f) * 6.0f;
+                float bumps = Noise::get2D(seed, wx * 0.04, wz * 0.04) * 10.0f; // std::sin(wx * 0.25f) * std::sin(wz * 0.15f) * 3.0f;
 
                 char blockType = 0;
 
@@ -323,12 +319,6 @@ void World::generateChunk(Chunk *chunk)
     chunk->markClean();
 }
 
-void World::queueDirty(ChunkPosition position)
-{
-    dirtyQueue.push_back(position);
-}
+void World::queueDirty(ChunkPosition position) { dirtyQueue.push_back(position); }
 
-const std::vector<Chunk *> &World::getChunks() const
-{
-    return chunks;
-}
+const std::vector<Chunk *> &World::getChunks() const { return chunks; }

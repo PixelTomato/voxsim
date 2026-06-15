@@ -4,6 +4,7 @@ add_library(engine STATIC
     src/input.cpp
     src/jobs.cpp
     src/mesh.cpp
+    src/noise.cpp
     src/shader.cpp
     src/texture.cpp
     src/window.cpp
