@@ -5,11 +5,12 @@
 #include <engine/mesh.hpp>
 
 #include <memory>
+#include <atomic>
 #include <array>
 
 class World;
 
-enum class ChunkState
+enum class ChunkState : char
 {
     AwaitingData,
     Generation,

@@ -9,6 +9,8 @@
 
 Window window(1280, 720, "VoxSim");
 
+JobSystem jobs;
+
 Shader shader("res/shaders/basic.vert", "res/shaders/basic.frag");
 
 Texture stoneBrickTexture("res/textures/stone_bricks.png");
@@ -20,7 +22,21 @@ World world;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-void init() { Input::init(window.getHandle()); }
+void init()
+{
+    Input::init(window.getHandle());
+
+    std::vector<ChunkPosition> chunks;
+
+    int rad = 12;
+
+    for (int x = -rad; x <= rad; x++)
+        for (int y = -rad; y <= rad; y++)
+            for (int z = -rad; z <= rad; z++)
+                chunks.push_back({x, y, z});
+
+    world.loadChunks(chunks, jobs);
+}
 
 void update()
 {
@@ -46,21 +62,7 @@ void update()
 
     camera.rotate(mouseX, mouseY);
 
-    world.updateRadius(camera.getPosition(), 12);
-
-    world.update();
-}
-
-void testLoad()
-{
-    std::stringstream message;
-    message << "ThreadStart: " << std::this_thread::get_id() << "\n";
-    std::cout << message.str();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    message << "ThreadEnd: " << std::this_thread::get_id() << "\n";
-    std::cout << message.str();
+    world.update(jobs);
 }
 
 void render()

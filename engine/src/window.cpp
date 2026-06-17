@@ -34,47 +34,20 @@ Window::Window(int width, int height, const char *title)
     glViewport(0, 0, width, height);
 }
 
-Window::~Window()
-{
-    glfwTerminate();
-}
+Window::~Window() { glfwTerminate(); }
 
-bool Window::shouldClose()
-{
-    return glfwWindowShouldClose(handle);
-}
+bool Window::shouldClose() { return glfwWindowShouldClose(handle); }
 
-void Window::clear()
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
+void Window::clear() { glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); }
 
-void Window::swapBuffers()
-{
-    glfwSwapBuffers(handle);
-}
+void Window::swapBuffers() { glfwSwapBuffers(handle); }
 
-void Window::pollInputs()
-{
-    glfwPollEvents();
-}
+void Window::pollInputs() { glfwPollEvents(); }
 
-GLFWwindow *Window::getHandle()
-{
-    return handle;
-}
+GLFWwindow *Window::getHandle() { return handle; }
 
-float Window::getWidth()
-{
-    return width;
-}
+float Window::getWidth() { return width; }
 
-float Window::getHeight()
-{
-    return height;
-}
+float Window::getHeight() { return height; }
 
-float Window::getAspect()
-{
-    return width / height;
-}
+float Window::getAspect() { return width / height; }

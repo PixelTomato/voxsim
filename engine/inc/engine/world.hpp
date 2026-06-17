@@ -3,14 +3,12 @@
 #include <engine/chunk.hpp>
 #include <engine/shader.hpp>
 #include <engine/noise.hpp>
+#include <engine/jobs.hpp>
 
 #include <unordered_map>
-#include <thread>
-#include <mutex>
-#include <atomic>
 #include <vector>
 #include <memory>
-#include <cmath>
+#include <mutex>
 
 struct ChunkHash
 {
@@ -29,50 +27,30 @@ struct ChunkHash
 class World
 {
 private:
-    std::thread workerThread;
-
-    mutable std::mutex queueMutex;
     mutable std::mutex mapMutex;
+    std::unordered_map<ChunkPosition, std::shared_ptr<Chunk>, ChunkHash> chunkTable;
 
-    std::atomic<bool> isRunning{true};
-
-    std::vector<ChunkPosition> genQueue;
-    std::vector<ChunkPosition> dirtyQueue;
+    mutable std::mutex meshMutex;
+    std::vector<std::unique_ptr<ChunkUpload>> meshQueue;
 
     std::vector<Chunk *> chunks;
-
-    std::unordered_map<ChunkPosition, std::unique_ptr<Chunk>, ChunkHash> chunkTable;
 
 public:
     World();
 
-    ~World();
-
-    void workerLoop();
-
-    Chunk *getChunkThreadSafe(ChunkPosition position);
-
-    void update();
+    void update(JobSystem &jobs);
 
     void draw(Shader &shader);
 
-    bool isLoaded(ChunkPosition position) const;
-
-    bool chunkExists(ChunkPosition position) const;
-
-    void updateRadius(glm::vec3 cameraPosition, int radius);
-
-    void loadChunk(ChunkPosition position);
+    void loadChunks(const std::vector<ChunkPosition> &positions, JobSystem &jobs);
 
     void unloadChunk(ChunkPosition position);
 
-    char getBlock(int x, int y, int z) const;
+    bool chunkExists(ChunkPosition position) const;
 
-    void setBlock(int x, int y, int z, char type);
+    std::shared_ptr<Chunk> getChunk(ChunkPosition position) const;
 
-    void generateChunk(Chunk *chunk);
+    void queueMesh(std::unique_ptr<ChunkUpload> data);
 
-    void queueDirty(ChunkPosition position);
-
-    const std::vector<Chunk *> &getChunks() const;
+    void generateChunk(const std::shared_ptr<Chunk> chunk);
 };
