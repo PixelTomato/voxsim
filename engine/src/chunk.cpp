@@ -2,54 +2,14 @@
 
 #include <engine/world.hpp>
 
-Chunk::Chunk(ChunkPosition position) : position(position) {}
-
-void Chunk::setBlock(int x, int y, int z, char type)
+std::unique_ptr<ChunkUpload> Chunk::buildMesh()
 {
-    blocks[getIndex(x, y, z)] = type;
-}
-
-char Chunk::getBlock(int x, int y, int z) const
-{
-    return blocks[getIndex(x, y, z)];
-}
-
-bool Chunk::isMeshed() const
-{
-    return meshed;
-}
-
-void Chunk::setMeshed(bool state)
-{
-    meshed = state;
-}
-
-bool Chunk::isGenerated() const
-{
-    return generated;
-}
-
-void Chunk::setGenerated(bool state)
-{
-    generated = state;
-}
-
-void Chunk::rebuildMesh()
-{
-    if (!mesh)
-    {
-        mesh = std::make_unique<Mesh>();
-    }
-
-    std::vector<float> vertices;
-    std::vector<unsigned int> indices;
+    auto data = std::make_unique<ChunkUpload>(position);
 
     const float cubeFaces[6][4][8] = {
-        {{0, 0, 1, +0, +0, +1, 0.0f, 0.0f}, {1, 0, 1, +0, +0, +1, 1.0f, 0.0f}, {1, 1, 1, +0, +0, +1, 1.0f, 1.0f}, {0, 1, 1, +0, +0, +1, 0.0f, 1.0f}}, // front
-        {{1, 0, 0, +0, +0, -1, 0.0f, 0.0f}, {0, 0, 0, +0, +0, -1, 1.0f, 0.0f}, {0, 1, 0, +0, +0, -1, 1.0f, 1.0f}, {1, 1, 0, +0, +0, -1, 0.0f, 1.0f}},
-        {{1, 0, 1, +1, +0, +0, 0.0f, 0.0f}, {1, 0, 0, +1, +0, +0, 1.0f, 0.0f}, {1, 1, 0, +1, +0, +0, 1.0f, 1.0f}, {1, 1, 1, +1, +0, +0, 0.0f, 1.0f}}, // right
-        {{0, 0, 0, -1, +0, +0, 0.0f, 0.0f}, {0, 0, 1, -1, +0, +0, 1.0f, 0.0f}, {0, 1, 1, -1, +0, +0, 1.0f, 1.0f}, {0, 1, 0, -1, +0, +0, 0.0f, 1.0f}},
-        {{0, 1, 1, +0, +1, +0, 0.0f, 0.0f}, {1, 1, 1, +0, +1, +0, 1.0f, 0.0f}, {1, 1, 0, +0, +1, +0, 1.0f, 1.0f}, {0, 1, 0, +0, +1, +0, 0.0f, 1.0f}}, // top
+        {{0, 0, 1, +0, +0, +1, 0.0f, 0.0f}, {1, 0, 1, +0, +0, +1, 1.0f, 0.0f}, {1, 1, 1, +0, +0, +1, 1.0f, 1.0f}, {0, 1, 1, +0, +0, +1, 0.0f, 1.0f}},                                                                                                                                               // front
+        {{1, 0, 0, +0, +0, -1, 0.0f, 0.0f}, {0, 0, 0, +0, +0, -1, 1.0f, 0.0f}, {0, 1, 0, +0, +0, -1, 1.0f, 1.0f}, {1, 1, 0, +0, +0, -1, 0.0f, 1.0f}}, {{1, 0, 1, +1, +0, +0, 0.0f, 0.0f}, {1, 0, 0, +1, +0, +0, 1.0f, 0.0f}, {1, 1, 0, +1, +0, +0, 1.0f, 1.0f}, {1, 1, 1, +1, +0, +0, 0.0f, 1.0f}}, // right
+        {{0, 0, 0, -1, +0, +0, 0.0f, 0.0f}, {0, 0, 1, -1, +0, +0, 1.0f, 0.0f}, {0, 1, 1, -1, +0, +0, 1.0f, 1.0f}, {0, 1, 0, -1, +0, +0, 0.0f, 1.0f}}, {{0, 1, 1, +0, +1, +0, 0.0f, 0.0f}, {1, 1, 1, +0, +1, +0, 1.0f, 0.0f}, {1, 1, 0, +0, +1, +0, 1.0f, 1.0f}, {0, 1, 0, +0, +1, +0, 0.0f, 1.0f}}, // top
         {{0, 0, 0, +0, -1, +0, 0.0f, 0.0f}, {1, 0, 0, +0, -1, +0, 1.0f, 0.0f}, {1, 0, 1, +0, -1, +0, 1.0f, 1.0f}, {0, 0, 1, +0, -1, +0, 0.0f, 1.0f}},
     };
 
@@ -77,25 +37,19 @@ void Chunk::rebuildMesh()
 
                     if (inBounds)
                     {
-                        if (getBlock(nx, ny, nz) == 0)
-                        {
-                            visible = true;
-                        }
+                        if (getBlock(nx, ny, nz) == 0) visible = true;
                     }
                     else
                     {
-                        Chunk *neighbor = neighbors[face];
+                        std::shared_ptr<Chunk> neighbor = neighbors[face];
 
-                        if (neighbor == nullptr || !neighbor->isGenerated())
+                        if (neighbor == nullptr)
                         {
                             visible = true;
                         }
-                        else
+                        else if (neighbor->getBlock(nx & 15, ny & 15, nz & 15) == 0)
                         {
-                            if (neighbor->getBlock(nx & 15, ny & 15, nz & 15) == 0)
-                            {
-                                visible = true;
-                            }
+                            visible = true;
                         }
                     }
 
@@ -103,24 +57,24 @@ void Chunk::rebuildMesh()
                     {
                         for (int vertex = 0; vertex < 4; vertex++)
                         {
-                            vertices.push_back(x + cubeFaces[face][vertex][0]);
-                            vertices.push_back(y + cubeFaces[face][vertex][1]);
-                            vertices.push_back(z + cubeFaces[face][vertex][2]);
+                            data->vertices.push_back(x + cubeFaces[face][vertex][0]);
+                            data->vertices.push_back(y + cubeFaces[face][vertex][1]);
+                            data->vertices.push_back(z + cubeFaces[face][vertex][2]);
 
-                            vertices.push_back(cubeFaces[face][vertex][3]);
-                            vertices.push_back(cubeFaces[face][vertex][4]);
-                            vertices.push_back(cubeFaces[face][vertex][5]);
+                            data->vertices.push_back(cubeFaces[face][vertex][3]);
+                            data->vertices.push_back(cubeFaces[face][vertex][4]);
+                            data->vertices.push_back(cubeFaces[face][vertex][5]);
 
-                            vertices.push_back(cubeFaces[face][vertex][6]);
-                            vertices.push_back(cubeFaces[face][vertex][7]);
+                            data->vertices.push_back(cubeFaces[face][vertex][6]);
+                            data->vertices.push_back(cubeFaces[face][vertex][7]);
                         }
 
-                        indices.push_back(indexOffset + 0);
-                        indices.push_back(indexOffset + 1);
-                        indices.push_back(indexOffset + 2);
-                        indices.push_back(indexOffset + 2);
-                        indices.push_back(indexOffset + 3);
-                        indices.push_back(indexOffset + 0);
+                        data->indices.push_back(indexOffset + 0);
+                        data->indices.push_back(indexOffset + 1);
+                        data->indices.push_back(indexOffset + 2);
+                        data->indices.push_back(indexOffset + 2);
+                        data->indices.push_back(indexOffset + 3);
+                        data->indices.push_back(indexOffset + 0);
 
                         indexOffset += 4;
                     }
@@ -129,44 +83,5 @@ void Chunk::rebuildMesh()
         }
     }
 
-    mesh->upload(vertices, indices);
-
-    dirty = false;
-
-    meshed = true;
-}
-
-void Chunk::markDirty(World &world)
-{
-    if (!dirty)
-    {
-        dirty = true;
-
-        world.queueDirty(position);
-    }
-}
-
-void Chunk::markClean()
-{
-    dirty = false;
-}
-
-bool Chunk::isDirty() const
-{
-    return dirty;
-}
-
-const Mesh *Chunk::getMesh() const
-{
-    return mesh.get();
-}
-
-ChunkPosition Chunk::getPosition() const
-{
-    return position;
-}
-
-inline int Chunk::getIndex(int x, int y, int z) const
-{
-    return (x << 8) | (y << 4) | z;
+    return data;
 }

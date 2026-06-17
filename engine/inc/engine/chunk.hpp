@@ -9,21 +9,35 @@
 
 class World;
 
+enum class ChunkState
+{
+    AwaitingData,
+    Generation,
+    AwaitingMesh,
+    Meshing,
+    Ready,
+};
+
 struct ChunkPosition
 {
     int x;
     int y;
     int z;
 
-    bool operator==(const ChunkPosition &other) const
-    {
-        return (x == other.x) && (y == other.y) && (z == other.z);
-    }
+    bool operator==(const ChunkPosition &other) const = default;
 
-    glm::vec3 toVec3() const
-    {
-        return glm::vec3(x, y, z);
-    }
+    glm::vec3 toVec3() const { return glm::vec3(x, y, z); }
+};
+
+struct ChunkUpload
+{
+    ChunkPosition position;
+
+    std::vector<float> vertices;
+
+    std::vector<unsigned int> indices;
+
+    ChunkUpload(ChunkPosition position) : position(position) {}
 };
 
 class Chunk
@@ -31,24 +45,16 @@ class Chunk
 private:
     std::array<char, 4096> blocks;
 
-    std::unique_ptr<Mesh> mesh = nullptr;
-
     ChunkPosition position;
 
-    bool generated = false;
-    bool meshed = false;
-
-    bool dirty = false;
+    std::unique_ptr<Mesh> mesh = nullptr;
 
 public:
-    Chunk *neighbors[6] = {
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-    };
+    std::atomic<ChunkState> state{ChunkState::AwaitingData};
+
+    std::atomic<int> awaitingData{7};
+
+    std::shared_ptr<Chunk> neighbors[6] = {};
 
     inline static const int NEIGHBORS[6][3] = {
         {+0, +0, +1}, // front
@@ -59,34 +65,20 @@ public:
         {+0, -1, +0}, // bottom
     };
 
-    std::size_t index;
+    Chunk(ChunkPosition position) : position(position) {}
 
-    Chunk(ChunkPosition position);
+    void setBlock(int x, int y, int z, char type) { blocks[getIndex(x, y, z)] = type; }
 
-    void setBlock(int x, int y, int z, char type);
+    char getBlock(int x, int y, int z) const { return blocks[getIndex(x, y, z)]; }
 
-    char getBlock(int x, int y, int z) const;
+    ChunkPosition getPosition() const { return position; }
 
-    bool isMeshed() const;
+    Mesh *getMesh() const { return mesh.get(); }
 
-    void setMeshed(bool state);
+    void setMesh(std::unique_ptr<Mesh> mesh) { this->mesh = std::move(mesh); }
 
-    bool isGenerated() const;
-
-    void setGenerated(bool state);
-
-    void rebuildMesh();
-
-    void markDirty(World &world);
-
-    void markClean();
-
-    bool isDirty() const;
-
-    const Mesh *getMesh() const;
-
-    ChunkPosition getPosition() const;
+    std::unique_ptr<ChunkUpload> buildMesh();
 
 private:
-    inline int getIndex(int x, int y, int z) const;
+    inline int getIndex(int x, int y, int z) const { return (x << 8) | (y << 4) | z; }
 };
