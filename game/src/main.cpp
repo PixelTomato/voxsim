@@ -27,15 +27,6 @@ void init()
     Input::init(window.getHandle());
 
     std::vector<ChunkPosition> chunks;
-
-    int rad = 12;
-
-    for (int x = -rad; x <= rad; x++)
-        for (int y = -rad; y <= rad; y++)
-            for (int z = -rad; z <= rad; z++)
-                chunks.push_back({x, y, z});
-
-    world.loadChunks(chunks, jobs);
 }
 
 void update()
@@ -61,6 +52,8 @@ void update()
     Input::getMouseDelta(mouseX, mouseY);
 
     camera.rotate(mouseX, mouseY);
+
+    world.updateChunkSphere(camera.getPosition(), 16, jobs);
 
     world.update(jobs);
 }

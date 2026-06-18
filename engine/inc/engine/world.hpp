@@ -35,8 +35,13 @@ private:
 
     std::vector<Chunk *> chunks;
 
+    ChunkPosition previousOrigin{INT_MAX, INT_MAX, INT_MAX};
+    int radius = 0;
+
 public:
     World();
+
+    void updateChunkSphere(const glm::vec3 &origin, int radius, JobSystem &jobs);
 
     void update(JobSystem &jobs);
 

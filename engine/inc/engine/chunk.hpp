@@ -44,7 +44,7 @@ struct ChunkUpload
 class Chunk
 {
 private:
-    std::array<char, 4096> blocks;
+    std::array<char, 4096> blocks{};
 
     ChunkPosition position;
 
@@ -65,6 +65,8 @@ public:
         {+0, +1, +0}, // top
         {+0, -1, +0}, // bottom
     };
+
+    std::size_t index{0};
 
     Chunk(ChunkPosition position) : position(position) {}
 
