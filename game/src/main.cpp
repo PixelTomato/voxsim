@@ -22,12 +22,7 @@ World world;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-void init()
-{
-    Input::init(window.getHandle());
-
-    std::vector<ChunkPosition> chunks;
-}
+void init() { Input::init(window.getHandle()); }
 
 void update()
 {
@@ -41,19 +36,19 @@ void update()
 
     if (Input::getKey(GLFW_KEY_ESCAPE)) glfwSetWindowShouldClose(window.getHandle(), true);
 
-    if (Input::getKey(GLFW_KEY_W)) camera.move(0, deltaTime);
-    if (Input::getKey(GLFW_KEY_S)) camera.move(1, deltaTime);
-    if (Input::getKey(GLFW_KEY_A)) camera.move(2, deltaTime);
-    if (Input::getKey(GLFW_KEY_D)) camera.move(3, deltaTime);
-    if (Input::getKey(GLFW_KEY_LEFT_SHIFT)) camera.move(4, deltaTime);
-    if (Input::getKey(GLFW_KEY_SPACE)) camera.move(5, deltaTime);
+    if (Input::getKey(GLFW_KEY_W)) camera.move(Direction::Forward, deltaTime);
+    if (Input::getKey(GLFW_KEY_S)) camera.move(Direction::Backward, deltaTime);
+    if (Input::getKey(GLFW_KEY_A)) camera.move(Direction::Left, deltaTime);
+    if (Input::getKey(GLFW_KEY_D)) camera.move(Direction::Right, deltaTime);
+    if (Input::getKey(GLFW_KEY_LEFT_SHIFT)) camera.move(Direction::Down, deltaTime);
+    if (Input::getKey(GLFW_KEY_SPACE)) camera.move(Direction::Up, deltaTime);
 
     double mouseX, mouseY;
     Input::getMouseDelta(mouseX, mouseY);
 
     camera.rotate(mouseX, mouseY);
 
-    world.updateChunkSphere(camera.getPosition(), 16, jobs);
+    world.loadSphere(camera.position, 12);
 
     world.update(jobs);
 }

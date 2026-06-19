@@ -1,269 +1,186 @@
 #include <engine/world.hpp>
 
-#include <iostream>
-
-World::World() { Noise(); }
-
-void World::updateChunkSphere(const glm::vec3 &origin, int radius, JobSystem &jobs)
-{
-    ChunkPosition currentOrigin = {static_cast<int>(std::floor(origin.x / 16.0f)), static_cast<int>(std::floor(origin.y / 16.0f)), static_cast<int>(std::floor(origin.z / 16.0f))};
-
-    if (currentOrigin == previousOrigin && this->radius == radius) return;
-
-    previousOrigin = currentOrigin;
-
-    this->radius = radius;
-
-    int squaredRadius = radius * radius;
-    std::vector<ChunkPosition> loadList;
-    std::vector<ChunkPosition> unloadList;
-
-    {
-        std::lock_guard<std::mutex> lock(mapMutex);
-
-        for (auto index = chunkTable.begin(); index != chunkTable.end();)
-        {
-            ChunkPosition position = index->first;
-
-            int dx = position.x - currentOrigin.x;
-            int dy = position.y - currentOrigin.y;
-            int dz = position.z - currentOrigin.z;
-
-            if ((dx * dx + dy * dy + dz * dz) > squaredRadius)
-            {
-                unloadList.push_back(position);
-            }
-
-            ++index;
-        }
-    }
-
-    for (const auto &position : unloadList)
-    {
-        unloadChunk(position);
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mapMutex);
-
-        for (int x = -radius; x <= radius; x++)
-        {
-            for (int y = -radius; y <= radius; y++)
-            {
-                for (int z = -radius; z <= radius; z++)
-                {
-                    if ((x * x + y * y + z * z) > squaredRadius) continue;
-
-                    ChunkPosition target = {static_cast<int>(currentOrigin.x + x), static_cast<int>(currentOrigin.y + y), static_cast<int>(currentOrigin.z + z)};
-
-                    if (!chunkTable.contains(target)) loadList.push_back(target);
-                }
-            }
-        }
-    }
-
-    if (!loadList.empty()) loadChunks(loadList, jobs);
-}
-
-void updateAwaiting(std::shared_ptr<Chunk> chunk, World *world, JobSystem &jobs, const std::shared_ptr<Chunk> source)
-{
-    if (chunk == nullptr || chunk->state.load() >= ChunkState::Meshing) return;
-
-    if (chunk->awaitingData.fetch_sub(1, std::memory_order_acq_rel) == 1)
-    {
-        chunk->state.store(ChunkState::Meshing, std::memory_order_release);
-
-        jobs.push(
-            [chunk, world]()
-            {
-                auto data = chunk->buildMesh();
-
-                world->queueMesh(std::move(data));
-            });
-    }
-}
-
-void World::loadChunks(const std::vector<ChunkPosition> &positions, JobSystem &jobs)
-{
-    std::lock_guard<std::mutex> lock(mapMutex);
-
-    std::vector<std::shared_ptr<Chunk>> generationQueue;
-
-    for (const auto &position : positions)
-    {
-        if (chunkTable.contains(position)) continue;
-
-        auto chunk = std::make_shared<Chunk>(position);
-
-        chunkTable[position] = chunk;
-
-        generationQueue.push_back(chunk);
-    }
-
-    for (auto &chunk : generationQueue)
-    {
-        ChunkPosition position = chunk->getPosition();
-
-        for (int i = 0; i < 6; i++)
-        {
-            ChunkPosition neighborPosition = {
-                position.x + Chunk::NEIGHBORS[i][0],
-                position.y + Chunk::NEIGHBORS[i][1],
-                position.z + Chunk::NEIGHBORS[i][2],
-            };
-
-            auto index = chunkTable.find(neighborPosition);
-            if (index != chunkTable.end())
-            {
-                std::shared_ptr<Chunk> neighbor = index->second;
-
-                chunk->neighbors[i] = index->second;
-                index->second->neighbors[i ^ 1] = chunk;
-
-                if (neighbor->state.load() >= ChunkState::AwaitingMesh)
-                {
-                    chunk->awaitingData.fetch_sub(1);
-                }
-            }
-        }
-    }
-
-    for (auto &chunk : generationQueue)
-    {
-        chunk->state.store(ChunkState::Generation, std::memory_order_release);
-
-        jobs.push(
-            [chunk, this, &jobs]()
-            {
-                generateChunk(chunk);
-
-                chunk->state.store(ChunkState::AwaitingMesh, std::memory_order_release);
-
-                updateAwaiting(chunk, this, jobs, chunk);
-
-                for (int i = 0; i < 6; i++)
-                {
-                    updateAwaiting(chunk->neighbors[i], this, jobs, chunk);
-                }
-            });
-    }
-}
-
-void World::queueMesh(std::unique_ptr<ChunkUpload> data)
-{
-    std::lock_guard<std::mutex> lock(meshMutex);
-
-    meshQueue.push_back(std::move(data));
-}
-
 void World::update(JobSystem &jobs)
 {
-    std::vector<std::unique_ptr<ChunkUpload>> meshUploads;
+    collectData();
+    collectMeshes();
 
-    {
-        std::lock_guard<std::mutex> lock(meshMutex);
+    scheduleGen(jobs);
+    scheduleMeshes(jobs);
 
-        if (!meshQueue.empty()) meshUploads.swap(meshQueue);
-    }
-
-    for (auto &meshData : meshUploads)
-    {
-        std::lock_guard<std::mutex> lock(mapMutex);
-
-        auto index = chunkTable.find(meshData->position);
-        if (index != chunkTable.end())
-        {
-            std::shared_ptr<Chunk> chunk = index->second;
-
-            auto mesh = std::make_unique<Mesh>();
-
-            mesh->upload(meshData->vertices, meshData->indices);
-
-            chunk->setMesh(std::move(mesh));
-
-            chunk->state.store(ChunkState::Ready, std::memory_order_release);
-
-            chunk->index = chunks.size();
-            chunks.push_back(chunk.get());
-        }
-    }
+    unloadChunks();
 }
 
 void World::draw(Shader &shader)
 {
     shader.bind();
 
-    for (auto chunk : chunks)
+    for (auto &[key, chunk] : renderChunks)
     {
-        if (chunk != nullptr && chunk->state.load(std::memory_order_acquire) == ChunkState::Ready)
-        {
-            glm::vec3 worldPosition = chunk->getPosition().toVec3() * 16.0f;
+        glm::vec3 position{key.x * 16.0f, key.y * 16.0f, key.z * 16.0f};
+        shader.setUniform("model", glm::translate(glm::mat4(1.0f), position));
 
-            shader.setUniform("model", glm::translate(glm::mat4(1.0f), worldPosition));
-
-            chunk->getMesh()->draw();
-        }
+        chunk.mesh.draw();
     }
 }
 
-void World::unloadChunk(ChunkPosition position)
+void World::loadSphere(glm::vec3 origin, int radius)
 {
-    std::lock_guard<std::mutex> lock(mapMutex);
+    loadedKeys.clear();
 
-    auto index = chunkTable.find(position);
-    if (index != chunkTable.end())
+    int cx = static_cast<int>(origin.x / 16.0f);
+    int cy = static_cast<int>(origin.y / 16.0f);
+    int cz = static_cast<int>(origin.z / 16.0f);
+
+    for (int x = cx - radius; x <= cx + radius; x++)
     {
-        Chunk *target = index->second.get();
-
-        if (target->state.load(std::memory_order_acquire) == ChunkState::Ready && !chunks.empty())
+        for (int y = cy - radius; y <= cy + radius; y++)
         {
-            // std::size_t swapIndex = target->index;
-
-            // Chunk *lastChunk = chunks.back();
-
-            // chunks[swapIndex] = lastChunk;
-            // lastChunk->index = swapIndex;
-
-            auto it = std::find(chunks.begin(), chunks.end(), target);
-            if (it != chunks.end())
+            for (int z = cz - radius; z <= cz + radius; z++)
             {
-                std::iter_swap(it, chunks.end() - 1);
-                chunks.pop_back();
-            }
-        }
+                int dx = x - cx;
+                int dy = y - cy;
+                int dz = z - cz;
 
-        for (int i = 0; i < 6; i++)
-        {
-            std::shared_ptr<Chunk> neighbor = index->second->neighbors[i];
-
-            if (neighbor != nullptr)
-            {
-                if (target->state.load() >= ChunkState::AwaitingMesh)
+                if ((dx * dx + dy * dy + dz * dz) < (radius * radius))
                 {
-                    neighbor->awaitingData.fetch_add(1);
+                    loadedKeys.insert({x, y, z});
                 }
-
-                neighbor->neighbors[i ^ 1] = nullptr;
             }
         }
-
-        chunkTable.erase(index);
     }
 }
 
-bool World::chunkExists(ChunkPosition position) const
+void World::collectData()
 {
-    std::lock_guard<std::mutex> lock(mapMutex);
+    auto data = genJobOutput.take();
 
-    return chunkTable.contains(position);
+    for (auto dataChunk : data)
+    {
+        genStage.erase(dataChunk->key);
+
+        dataChunks.emplace(dataChunk->key, std::move(dataChunk));
+    }
 }
 
-void World::generateChunk(const std::shared_ptr<Chunk> chunk)
+void World::collectMeshes()
 {
-    ChunkPosition position = chunk->getPosition();
-    int wcx = position.x << 4;
-    int wcy = position.y << 4;
-    int wcz = position.z << 4;
+    auto data = meshJobOutput.take();
+
+    for (auto &meshChunk : data)
+    {
+        meshStage.erase(meshChunk.key);
+
+        RenderChunk renderChunk;
+        renderChunk.key = meshChunk.key;
+        renderChunk.mesh.upload(meshChunk.vertices, meshChunk.indices);
+
+        renderChunks[meshChunk.key] = std::move(renderChunk);
+    }
+}
+
+void World::scheduleGen(JobSystem &jobs)
+{
+    for (const auto &key : loadedKeys)
+    {
+        if (dataChunks.contains(key) || genStage.contains(key)) continue;
+
+        genStage.insert(key);
+
+        jobs.push(
+            [this, key]
+            {
+                auto dataChunk = std::make_shared<DataChunk>();
+                dataChunk->key = key;
+
+                generateChunk(dataChunk);
+
+                genJobOutput.push(std::move(dataChunk));
+            });
+    }
+}
+
+bool World::canMesh(ChunkKey key) const
+{
+    const int offsets[6][3] = {{+0, +0, +1}, {+0, +0, -1}, {+1, +0, +0}, {-1, +0, +0}, {+0, +1, +0}, {+0, -1, +0}};
+
+    for (auto offset : offsets)
+    {
+        if (!dataChunks.contains({key.x + offset[0], key.y + offset[1], key.z + offset[2]})) return false;
+    }
+
+    return true;
+}
+
+void World::scheduleMeshes(JobSystem &jobs)
+{
+    for (auto &[key, chunk] : dataChunks)
+    {
+        if (renderChunks.contains(key) || meshStage.contains(key)) continue;
+
+        if (canMesh(key))
+        {
+            meshStage.insert(key);
+
+            ChunkPack chunkPack;
+            chunkPack.main = chunk;
+
+            for (int i = 0; i < 6; i++)
+            {
+                ChunkKey neighborKey;
+                neighborKey.x = key.x + Chunk::NEIGHBORS[i][0];
+                neighborKey.y = key.y + Chunk::NEIGHBORS[i][1];
+                neighborKey.z = key.z + Chunk::NEIGHBORS[i][2];
+
+                chunkPack.neighbors[i] = dataChunks.at(neighborKey);
+            }
+
+            jobs.push(
+                [this, key, chunkPack]
+                {
+                    MeshChunk meshChunk;
+                    meshChunk.key = key;
+
+                    Chunk::buildMesh(key, chunkPack, meshChunk);
+
+                    meshJobOutput.push(std::move(meshChunk));
+                });
+        }
+    }
+}
+
+void World::unloadChunks()
+{
+    for (auto iterator = renderChunks.begin(); iterator != renderChunks.end();)
+    {
+        if (!loadedKeys.contains(iterator->first))
+        {
+            iterator = renderChunks.erase(iterator);
+        }
+        else
+        {
+            ++iterator;
+        }
+    }
+
+    for (auto iterator = dataChunks.begin(); iterator != dataChunks.end();)
+    {
+        if (!loadedKeys.contains(iterator->first))
+        {
+            iterator = dataChunks.erase(iterator);
+        }
+        else
+        {
+            ++iterator;
+        }
+    }
+}
+
+void World::generateChunk(std::shared_ptr<DataChunk> chunk)
+{
+    int wcx = chunk->key.x * 16;
+    int wcy = chunk->key.y * 16;
+    int wcz = chunk->key.z * 16;
 
     long seed = 46416616514;
 
@@ -277,17 +194,17 @@ void World::generateChunk(const std::shared_ptr<Chunk> chunk)
                 double wy = static_cast<double>(wcy + y);
                 double wz = static_cast<double>(wcz + z);
 
-                float hills = Noise::get2D(seed, wx * 0.01, wz * 0.01) * 30.0f;
+                float hills = Noise::get2D(seed, wx * 0.01, wz * 0.01) * 20.0f;
                 float bumps = Noise::get2D(seed, wx * 0.04, wz * 0.04) * 10.0f;
 
                 char blockType = 0;
 
-                if (wy < (hills + bumps + 10.0f))
+                if (wy < (hills + bumps))
                 {
                     blockType = 1;
                 }
 
-                chunk->setBlock(x, y, z, blockType);
+                chunk->blocks[Chunk::getIndex(x, y, z)] = blockType;
             }
         }
     }

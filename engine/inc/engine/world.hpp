@@ -6,19 +6,17 @@
 #include <engine/jobs.hpp>
 
 #include <unordered_map>
-#include <vector>
-#include <memory>
-#include <mutex>
+#include <unordered_set>
 
 struct ChunkHash
 {
-    std::size_t operator()(const ChunkPosition &position) const noexcept
+    std::size_t operator()(const ChunkKey &key) const noexcept
     {
         std::size_t hash = 0;
 
-        hash ^= std::hash<int>{}(position.x) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
-        hash ^= std::hash<int>{}(position.y) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
-        hash ^= std::hash<int>{}(position.z) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<int>{}(key.x) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<int>{}(key.y) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
+        hash ^= std::hash<int>{}(key.z) + 0x9E3779B9 + (hash << 6) + (hash >> 2);
 
         return hash;
     }
@@ -27,35 +25,37 @@ struct ChunkHash
 class World
 {
 private:
-    mutable std::mutex mapMutex;
-    std::unordered_map<ChunkPosition, std::shared_ptr<Chunk>, ChunkHash> chunkTable;
+    std::unordered_set<ChunkKey, ChunkHash> loadedKeys;
+    std::unordered_set<ChunkKey, ChunkHash> genStage;
+    std::unordered_set<ChunkKey, ChunkHash> meshStage;
 
-    mutable std::mutex meshMutex;
-    std::vector<std::unique_ptr<ChunkUpload>> meshQueue;
+    std::unordered_map<ChunkKey, std::shared_ptr<DataChunk>, ChunkHash> dataChunks;
+    std::unordered_map<ChunkKey, RenderChunk, ChunkHash> renderChunks;
 
-    std::vector<Chunk *> chunks;
-
-    ChunkPosition previousOrigin{INT_MAX, INT_MAX, INT_MAX};
-    int radius = 0;
+    LockQueue<std::shared_ptr<DataChunk>> genJobOutput;
+    LockQueue<MeshChunk> meshJobOutput;
 
 public:
-    World();
-
-    void updateChunkSphere(const glm::vec3 &origin, int radius, JobSystem &jobs);
+    World() { Noise(); }
 
     void update(JobSystem &jobs);
 
     void draw(Shader &shader);
 
-    void loadChunks(const std::vector<ChunkPosition> &positions, JobSystem &jobs);
+    void loadSphere(glm::vec3 origin, int radius);
 
-    void unloadChunk(ChunkPosition position);
+private:
+    void collectData();
 
-    bool chunkExists(ChunkPosition position) const;
+    void collectMeshes();
 
-    std::shared_ptr<Chunk> getChunk(ChunkPosition position) const;
+    void scheduleGen(JobSystem &jobs);
 
-    void queueMesh(std::unique_ptr<ChunkUpload> data);
+    bool canMesh(ChunkKey key) const;
 
-    void generateChunk(const std::shared_ptr<Chunk> chunk);
+    void scheduleMeshes(JobSystem &jobs);
+
+    void unloadChunks();
+
+    void generateChunk(std::shared_ptr<DataChunk> chunk);
 };
