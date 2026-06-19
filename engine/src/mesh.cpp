@@ -23,8 +23,51 @@ Mesh::~Mesh()
     glDeleteBuffers(1, &EBO);
 }
 
+Mesh::Mesh(Mesh &&other) noexcept
+{
+    VAO = other.VAO;
+    VBO = other.VBO;
+    EBO = other.EBO;
+
+    vertexCount = other.vertexCount;
+    indexCount = other.indexCount;
+
+    other.VAO = 0;
+    other.VBO = 0;
+    other.EBO = 0;
+
+    other.vertexCount = 0;
+    other.indexCount = 0;
+}
+
+Mesh &Mesh::operator=(Mesh &&other) noexcept
+{
+    if (this == &other) return *this;
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+
+    VAO = other.VAO;
+    VBO = other.VBO;
+    EBO = other.EBO;
+
+    vertexCount = other.vertexCount;
+    indexCount = other.indexCount;
+
+    other.VAO = 0;
+    other.VBO = 0;
+    other.EBO = 0;
+
+    other.vertexCount = 0;
+    other.indexCount = 0;
+
+    return *this;
+}
+
 void Mesh::upload(const std::vector<float> &vertices, const std::vector<unsigned int> &indices)
 {
+    vertexCount = vertices.size();
     indexCount = indices.size();
 
     if (indices.empty() || vertices.empty()) return;
