@@ -3,6 +3,16 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+enum class Direction
+{
+    Forward,
+    Backward,
+    Left,
+    Right,
+    Down,
+    Up,
+};
+
 class Camera
 {
 public:
@@ -22,7 +32,7 @@ public:
 
     void goTo(glm::vec3 position);
 
-    void move(int direction, float deltaTime);
+    void move(Direction direction, float deltaTime);
 
     void rotate(float x, float y);
 

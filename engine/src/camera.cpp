@@ -17,29 +17,20 @@ Camera::Camera(glm::vec3 position)
     calculateVectors();
 }
 
-void Camera::goTo(glm::vec3 position)
-{
-    this->position = position;
-}
+void Camera::goTo(glm::vec3 position) { this->position = position; }
 
-void Camera::move(int direction, float deltaTime)
+void Camera::move(Direction direction, float deltaTime)
 {
     float velocity = speed * deltaTime;
 
     glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
 
-    if (direction == 0)
-        position += flatFront * velocity;
-    if (direction == 1)
-        position -= flatFront * velocity;
-    if (direction == 2)
-        position -= right * velocity;
-    if (direction == 3)
-        position += right * velocity;
-    if (direction == 4)
-        position -= worldUp * velocity;
-    if (direction == 5)
-        position += worldUp * velocity;
+    if (direction == Direction::Forward) position += flatFront * velocity;
+    if (direction == Direction::Backward) position -= flatFront * velocity;
+    if (direction == Direction::Left) position -= right * velocity;
+    if (direction == Direction::Right) position += right * velocity;
+    if (direction == Direction::Down) position -= worldUp * velocity;
+    if (direction == Direction::Up) position += worldUp * velocity;
 }
 
 void Camera::rotate(float deltaX, float deltaY)
@@ -52,25 +43,16 @@ void Camera::rotate(float deltaX, float deltaY)
     calculateVectors();
 }
 
-glm::mat4 Camera::getViewMatrix() const
-{
-    return glm::lookAt(position, position + front, up);
-}
+glm::mat4 Camera::getViewMatrix() const { return glm::lookAt(position, position + front, up); }
 
-glm::vec3 Camera::getPosition() const
-{
-    return position;
-}
+glm::vec3 Camera::getPosition() const { return position; }
 
 void Camera::calculateVectors()
 {
     float radYaw = glm::radians(yaw);
     float radPitch = glm::radians(pitch);
 
-    front = glm::normalize(glm::vec3(
-        glm::cos(radYaw) * glm::cos(radPitch),
-        glm::sin(radPitch),
-        glm::sin(radYaw) * glm::cos(radPitch)));
+    front = glm::normalize(glm::vec3(glm::cos(radYaw) * glm::cos(radPitch), glm::sin(radPitch), glm::sin(radYaw) * glm::cos(radPitch)));
 
     right = glm::normalize(glm::cross(front, worldUp));
 
