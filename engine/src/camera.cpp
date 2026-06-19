@@ -12,7 +12,7 @@ Camera::Camera(glm::vec3 position)
     pitch = 0.0f;
 
     speed = 18.0f;
-    sensitivity = 0.03f;
+    sensitivity = 4.0f;
 
     calculateVectors();
 }
@@ -33,12 +33,12 @@ void Camera::move(Direction direction, float deltaTime)
     if (direction == Direction::Up) position += worldUp * velocity;
 }
 
-void Camera::rotate(float deltaX, float deltaY)
+void Camera::rotate(float deltaX, float deltaY, float deltaTime)
 {
-    yaw += deltaX * sensitivity;
-    pitch += deltaY * sensitivity;
+    yaw += deltaX * sensitivity * deltaTime;
+    pitch += deltaY * sensitivity * deltaTime;
 
-    pitch = glm::clamp(pitch, -90.0f, 90.0f);
+    pitch = glm::clamp(pitch, -89.999f, 89.999f);
 
     calculateVectors();
 }

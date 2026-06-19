@@ -46,7 +46,7 @@ void update()
     double mouseX, mouseY;
     Input::getMouseDelta(mouseX, mouseY);
 
-    camera.rotate(mouseX, mouseY);
+    camera.rotate(mouseX, mouseY, deltaTime);
 
     world.loadSphere(camera.position, 12);
 

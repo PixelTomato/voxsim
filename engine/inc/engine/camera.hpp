@@ -34,7 +34,7 @@ public:
 
     void move(Direction direction, float deltaTime);
 
-    void rotate(float x, float y);
+    void rotate(float x, float y, float deltaTime);
 
     glm::mat4 getViewMatrix() const;
 
