@@ -1,12 +1,17 @@
 #include <engine/chunk.hpp>
-
+#include <iostream>
 void Chunk::buildMesh(ChunkKey key, ChunkPack chunkPack, MeshChunk &mesh)
 {
+    const float TEXTURE_STEP = 1.0f / 8.0f;
+    const int ATLAS_SIZE = 8;
+
     const float cubeFaces[6][4][8] = {
-        {{0, 0, 1, +0, +0, +1, 0.0f, 0.0f}, {1, 0, 1, +0, +0, +1, 1.0f, 0.0f}, {1, 1, 1, +0, +0, +1, 1.0f, 1.0f}, {0, 1, 1, +0, +0, +1, 0.0f, 1.0f}},                                                                                                                                               // front
-        {{1, 0, 0, +0, +0, -1, 0.0f, 0.0f}, {0, 0, 0, +0, +0, -1, 1.0f, 0.0f}, {0, 1, 0, +0, +0, -1, 1.0f, 1.0f}, {1, 1, 0, +0, +0, -1, 0.0f, 1.0f}}, {{1, 0, 1, +1, +0, +0, 0.0f, 0.0f}, {1, 0, 0, +1, +0, +0, 1.0f, 0.0f}, {1, 1, 0, +1, +0, +0, 1.0f, 1.0f}, {1, 1, 1, +1, +0, +0, 0.0f, 1.0f}}, // right
-        {{0, 0, 0, -1, +0, +0, 0.0f, 0.0f}, {0, 0, 1, -1, +0, +0, 1.0f, 0.0f}, {0, 1, 1, -1, +0, +0, 1.0f, 1.0f}, {0, 1, 0, -1, +0, +0, 0.0f, 1.0f}}, {{0, 1, 1, +0, +1, +0, 0.0f, 0.0f}, {1, 1, 1, +0, +1, +0, 1.0f, 0.0f}, {1, 1, 0, +0, +1, +0, 1.0f, 1.0f}, {0, 1, 0, +0, +1, +0, 0.0f, 1.0f}}, // top
-        {{0, 0, 0, +0, -1, +0, 0.0f, 0.0f}, {1, 0, 0, +0, -1, +0, 1.0f, 0.0f}, {1, 0, 1, +0, -1, +0, 1.0f, 1.0f}, {0, 0, 1, +0, -1, +0, 0.0f, 1.0f}},
+        {{0, 0, 1, +0, +0, +1, 0.0f, 1.0f}, {1, 0, 1, +0, +0, +1, 1.0f, 1.0f}, {1, 1, 1, +0, +0, +1, 1.0f, 0.0f}, {0, 1, 1, +0, +0, +1, 0.0f, 0.0f}}, // (+Z) front
+        {{1, 0, 0, +0, +0, -1, 0.0f, 1.0f}, {0, 0, 0, +0, +0, -1, 1.0f, 1.0f}, {0, 1, 0, +0, +0, -1, 1.0f, 0.0f}, {1, 1, 0, +0, +0, -1, 0.0f, 0.0f}}, // (-Z)
+        {{1, 0, 1, +1, +0, +0, 0.0f, 1.0f}, {1, 0, 0, +1, +0, +0, 1.0f, 1.0f}, {1, 1, 0, +1, +0, +0, 1.0f, 0.0f}, {1, 1, 1, +1, +0, +0, 0.0f, 0.0f}}, // (+X) right
+        {{0, 0, 0, -1, +0, +0, 0.0f, 1.0f}, {0, 0, 1, -1, +0, +0, 1.0f, 1.0f}, {0, 1, 1, -1, +0, +0, 1.0f, 0.0f}, {0, 1, 0, -1, +0, +0, 0.0f, 0.0f}}, // (-X)
+        {{0, 1, 1, +0, +1, +0, 0.0f, 1.0f}, {1, 1, 1, +0, +1, +0, 1.0f, 1.0f}, {1, 1, 0, +0, +1, +0, 1.0f, 0.0f}, {0, 1, 0, +0, +1, +0, 0.0f, 0.0f}}, // (+Y) top
+        {{0, 0, 0, +0, -1, +0, 0.0f, 1.0f}, {1, 0, 0, +0, -1, +0, 1.0f, 1.0f}, {1, 0, 1, +0, -1, +0, 1.0f, 0.0f}, {0, 0, 1, +0, -1, +0, 0.0f, 0.0f}}, // (-Y)
     };
 
     int indexOffset = 0;
@@ -17,8 +22,7 @@ void Chunk::buildMesh(ChunkKey key, ChunkPack chunkPack, MeshChunk &mesh)
         {
             for (int z = 0; z < 16; z++)
             {
-                int index = Chunk::getIndex(x, y, z);
-                char type = chunkPack.main->blocks.at(index);
+                char type = chunkPack.main->blocks[Chunk::getIndex(x, y, z)];
 
                 if (type == 0) continue;
 
@@ -34,25 +38,18 @@ void Chunk::buildMesh(ChunkKey key, ChunkPack chunkPack, MeshChunk &mesh)
 
                     if (inBounds)
                     {
-                        int index = Chunk::getIndex(nx, ny, nz);
-                        if (chunkPack.main->blocks.at(index) == 0) visible = true;
+                        if (chunkPack.main->blocks[Chunk::getIndex(nx, ny, nz)] == 0) visible = true;
                     }
-                    else
+                    else if (chunkPack.neighbors[face]->blocks[Chunk::getIndex(nx & 15, ny & 15, nz & 15)] == 0)
                     {
-                        auto neighbor = chunkPack.neighbors[face];
-
-                        if (neighbor == nullptr)
-                        {
-                            visible = true;
-                        }
-                        else if (neighbor->blocks[Chunk::getIndex(nx & 15, ny & 15, nz & 15)] == 0)
-                        {
-                            visible = true;
-                        }
+                        visible = true;
                     }
 
                     if (visible)
                     {
+                        float u = static_cast<float>(type % ATLAS_SIZE);
+                        float v = static_cast<float>(type / ATLAS_SIZE);
+
                         for (int vertex = 0; vertex < 4; vertex++)
                         {
                             mesh.vertices.push_back(x + cubeFaces[face][vertex][0]);
@@ -63,8 +60,8 @@ void Chunk::buildMesh(ChunkKey key, ChunkPack chunkPack, MeshChunk &mesh)
                             mesh.vertices.push_back(cubeFaces[face][vertex][4]);
                             mesh.vertices.push_back(cubeFaces[face][vertex][5]);
 
-                            mesh.vertices.push_back(cubeFaces[face][vertex][6]);
-                            mesh.vertices.push_back(cubeFaces[face][vertex][7]);
+                            mesh.vertices.push_back(u * TEXTURE_STEP + cubeFaces[face][vertex][6] * TEXTURE_STEP);
+                            mesh.vertices.push_back(v * TEXTURE_STEP + cubeFaces[face][vertex][7] * TEXTURE_STEP);
                         }
 
                         mesh.indices.push_back(indexOffset + 0);
