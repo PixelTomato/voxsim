@@ -13,7 +13,7 @@ JobSystem jobs;
 
 Shader shader("res/shaders/basic.vert", "res/shaders/basic.frag");
 
-Texture stoneBrickTexture("res/textures/stone_bricks.png");
+Texture stoneBrickTexture("res/textures/atlas.png");
 
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
@@ -48,7 +48,7 @@ void update()
 
     camera.rotate(mouseX, mouseY, deltaTime);
 
-    world.loadSphere(camera.position, 12);
+    world.loadSphere(camera.position / 16.0f, 16);
 
     world.update(jobs);
 }

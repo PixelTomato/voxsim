@@ -10,7 +10,7 @@ Texture::Texture(const std::string &path)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(false);
 
     int width;
     int height;
@@ -27,18 +27,13 @@ Texture::Texture(const std::string &path)
     }
     else
     {
-        std::cout << "Failed to load texture: "
-                  << path
-                  << "\n";
+        std::cout << "Failed to load texture: " << path << "\n";
     }
 
     stbi_image_free(data);
 }
 
-Texture::~Texture()
-{
-    glDeleteTextures(1, &handle);
-}
+Texture::~Texture() { glDeleteTextures(1, &handle); }
 
 void Texture::bind(unsigned int slot)
 {
