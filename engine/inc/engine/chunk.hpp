@@ -46,6 +46,8 @@ struct DataChunk
 {
     ChunkKey key;
 
+    int voxels{0};
+
     std::array<char, 4096> blocks;
 };
 

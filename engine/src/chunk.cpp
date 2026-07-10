@@ -2,6 +2,8 @@
 #include <iostream>
 void Chunk::buildMesh(ChunkKey key, ChunkPack chunkPack, MeshChunk &mesh)
 {
+    if (chunkPack.main->voxels == 0) return;
+
     const float TEXTURE_STEP = 1.0f / 8.0f;
     const int ATLAS_SIZE = 8;
 
