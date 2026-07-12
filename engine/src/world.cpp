@@ -17,38 +17,65 @@ void World::draw(Shader &shader)
 
     for (auto &[key, chunk] : renderChunks)
     {
-        glm::vec3 position{key.x * 16.0f, key.y * 16.0f, key.z * 16.0f};
-        shader.setUniform("model", glm::translate(glm::mat4(1.0f), position));
+        if (chunk.mesh.vertexCount > 0)
+        {
+            glm::vec3 position{key.x * 16.0f, key.y * 16.0f, key.z * 16.0f};
+            shader.setUniform("model", glm::translate(glm::mat4(1.0f), position));
 
-        chunk.mesh.draw();
+            chunk.mesh.draw();
+        }
     }
 }
 
 void World::loadSphere(glm::vec3 origin, int radius)
 {
-    loadedKeys.clear();
+    int chunkX = static_cast<int>(origin.x);
+    int chunkY = static_cast<int>(origin.y);
+    int chunkZ = static_cast<int>(origin.z);
 
-    int cx = static_cast<int>(origin.x / 16.0f);
-    int cy = static_cast<int>(origin.y / 16.0f);
-    int cz = static_cast<int>(origin.z / 16.0f);
+    ChunkKey originKey{chunkX, chunkY, chunkZ};
 
-    for (int x = cx - radius; x <= cx + radius; x++)
+    if (originKey == lastOrigin) return;
+    lastOrigin = originKey;
+
+    loadQueue.clear();
+    unloadQueue.clear();
+
+    std::unordered_set<ChunkKey, ChunkHash> sphereKeys;
+
+    const int squareRad = radius * radius;
+
+    for (int x = chunkX - radius; x <= chunkX + radius; x++)
     {
-        for (int y = cy - radius; y <= cy + radius; y++)
+        for (int y = chunkY - radius; y <= chunkY + radius; y++)
         {
-            for (int z = cz - radius; z <= cz + radius; z++)
+            for (int z = chunkZ - radius; z <= chunkZ + radius; z++)
             {
-                int dx = x - cx;
-                int dy = y - cy;
-                int dz = z - cz;
+                int dx = x - chunkX;
+                int dy = y - chunkY;
+                int dz = z - chunkZ;
 
-                if ((dx * dx + dy * dy + dz * dz) < (radius * radius))
+                if ((dx * dx + dy * dy + dz * dz) < squareRad)
                 {
-                    loadedKeys.insert({x, y, z});
+                    ChunkKey key{x, y, z};
+
+                    sphereKeys.insert(key);
+
+                    if (!loadedKeys.contains(key))
+                    {
+                        loadQueue.push_back(key);
+                    }
                 }
             }
         }
     }
+
+    for (const auto &key : loadedKeys)
+    {
+        if (!sphereKeys.contains(key)) unloadQueue.push_back(key);
+    }
+
+    loadedKeys = std::move(sphereKeys);
 }
 
 void World::collectData()
@@ -69,6 +96,14 @@ void World::collectMeshes()
 
     for (auto &meshChunk : data)
     {
+        pendingUploads.push_back(std::move(meshChunk));
+    }
+
+    for (int i = 0; i < 16 && !pendingUploads.empty(); i++)
+    {
+        auto meshChunk = pendingUploads.back();
+        pendingUploads.pop_back();
+
         meshStage.erase(meshChunk.key);
 
         RenderChunk renderChunk;
@@ -102,7 +137,7 @@ void World::scheduleGen(JobSystem &jobs)
 
 bool World::canMesh(ChunkKey key) const
 {
-    const int offsets[6][3] = {{+0, +0, +1}, {+0, +0, -1}, {+1, +0, +0}, {-1, +0, +0}, {+0, +1, +0}, {+0, -1, +0}};
+    constexpr int offsets[6][3] = {{+0, +0, +1}, {+0, +0, -1}, {+1, +0, +0}, {-1, +0, +0}, {+0, +1, +0}, {+0, -1, +0}};
 
     for (auto offset : offsets)
     {
@@ -178,9 +213,9 @@ void World::unloadChunks()
 
 void World::generateChunk(std::shared_ptr<DataChunk> chunk)
 {
-    int wcx = chunk->key.x * 16;
-    int wcy = chunk->key.y * 16;
-    int wcz = chunk->key.z * 16;
+    int wChunkX = chunk->key.x * 16;
+    int wChunkY = chunk->key.y * 16;
+    int wChunkZ = chunk->key.z * 16;
 
     long seed = 46416616514;
 
@@ -190,18 +225,20 @@ void World::generateChunk(std::shared_ptr<DataChunk> chunk)
         {
             for (int z = 0; z < 16; z++)
             {
-                double wx = static_cast<double>(wcx + x);
-                double wy = static_cast<double>(wcy + y);
-                double wz = static_cast<double>(wcz + z);
+                double wx = static_cast<double>(wChunkX + x);
+                double wy = static_cast<double>(wChunkY + y);
+                double wz = static_cast<double>(wChunkZ + z);
 
-                float hills = Noise::get2D(seed, wx * 0.01, wz * 0.01) * 20.0f;
-                float bumps = Noise::get2D(seed, wx * 0.04, wz * 0.04) * 10.0f;
+                float hills = Noise::get2D(seed, wx * 0.0075, wz * 0.0075) * 15.0f;
+                float bumps = Noise::get2D(seed, (wx + 20.0f) * 0.05, (wz + 20.0f) * 0.05) * 4.0f;
 
                 char blockType = 0;
 
                 if (wy < (hills + bumps))
                 {
-                    blockType = 1;
+                    blockType = static_cast<int>(glm::mod(static_cast<float>(wy), 32.0f)) + 1;
+
+                    chunk->voxels++;
                 }
 
                 chunk->blocks[Chunk::getIndex(x, y, z)] = blockType;

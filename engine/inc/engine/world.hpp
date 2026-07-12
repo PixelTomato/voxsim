@@ -35,6 +35,13 @@ private:
     LockQueue<std::shared_ptr<DataChunk>> genJobOutput;
     LockQueue<MeshChunk> meshJobOutput;
 
+    std::vector<ChunkKey> loadQueue;
+    std::vector<ChunkKey> unloadQueue;
+
+    std::vector<MeshChunk> pendingUploads;
+
+    ChunkKey lastOrigin{INT_MAX, INT_MAX, INT_MAX};
+
 public:
     World() { Noise(); }
 
